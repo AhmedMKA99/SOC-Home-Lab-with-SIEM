@@ -1,0 +1,96 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Modern organisations generate enormous volumes of security-relevant data:
+authentication events, process executions, network connections, file changes,
+and system errors. Making sense of this data --- and acting on it quickly
+enough to matter --- is the work of a Security Operations Centre (SOC). At the
+centre of every SOC sits a Security Information and Event Management (SIEM)
+platform, which collects logs from across an estate, correlates them, and
+raises alerts an analyst can investigate.
+
+For someone entering the cybersecurity profession, this creates a practical
+difficulty. Almost every junior SOC and security-analyst role expects
+familiarity with a SIEM, yet undergraduate study tends to teach the theory of
+detection and incident response without sustained hands-on exposure to the
+tools themselves. A graduate can describe what a SIEM does without ever having
+operated one.
+
+This project was undertaken to close that gap directly. It designs, builds,
+and documents a working SOC home lab using only free and open-source software,
+producing both a functional environment and a reproducible record of how it
+was created.
+
+\subsection{Aim and Objectives}
+\label{sec:aim}
+
+The \textbf{aim} of this project is to design, deploy, and operate a functional
+SOC home lab built on an open-source SIEM, capable of collecting and analysing
+security telemetry from multiple endpoints and supporting a realistic analyst
+triage workflow.
+
+The aim is met through the following \textbf{objectives}:
+
+\begin{enumerate}[label=\textbf{O\arabic*.},leftmargin=*]
+    \item Deploy an open-source SIEM server on an isolated virtual network.
+    \item Configure two monitored endpoints --- a Windows host and a Linux
+          host --- each reporting to the SIEM.
+    \item Enable enhanced host telemetry beyond default operating-system logs.
+    \item Verify centralised log collection and establish a baseline of normal
+          activity.
+    \item Simulate a set of security events and observe the resulting alerts.
+    \item Triage the alerts, classifying them and documenting the reasoning.
+    \item Produce a fully reproducible record of the build so the lab can be
+          rebuilt by a third party.
+\end{enumerate}
+
+\subsection{Research Questions}
+\label{sec:rq}
+
+The project is framed around three research questions, revisited in the
+Discussion and Conclusions:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{RQ1.} Can a credible SOC monitoring environment, capable of
+          collecting endpoint telemetry and generating meaningful alerts, be
+          built using only free and open-source tools?
+    \item \textbf{RQ2.} What additional configuration is required beyond a
+          default SIEM and operating-system installation to achieve
+          detection-grade visibility?
+    \item \textbf{RQ3.} To what extent does a single-machine virtualised lab
+          realistically represent the work of a professional SOC, and where
+          are the limits of that representation?
+\end{itemize}
+
+\subsection{Contributions}
+\label{sec:contributions}
+
+This project contributes:
+
+\begin{itemize}[leftmargin=*]
+    \item A complete, working SOC home-lab build using Wazuh, deployed on an
+          isolated network with Windows and Linux endpoints.
+    \item A fully documented, step-by-step record enabling independent
+          reproduction of the environment.
+    \item A set of attack simulations paired with the alerts they produce and
+          an analyst-style triage of each.
+    \item An honest assessment of how closely such a lab represents real SOC
+          work, including its limitations.
+\end{itemize}
+
+\subsection{Report Structure}
+\label{sec:structure}
+
+The remainder of this report is organised as follows.
+\textbf{Section~\ref{sec:litreview}} reviews the background literature on
+SOCs, SIEM technology, logging, and security home labs, and positions this
+work against related projects.
+\textbf{Section~\ref{sec:methodology}} sets out the general methodology and
+design decisions.
+\textbf{Section~\ref{sec:implementation}} documents the specific
+implementation of the lab.
+\textbf{Section~\ref{sec:evaluation}} evaluates whether the lab meets its
+objectives.
+\textbf{Section~\ref{sec:discussion}} discusses challenges and revisits the
+research questions, and \textbf{Section~\ref{sec:conclusions}} concludes and
+identifies future work.

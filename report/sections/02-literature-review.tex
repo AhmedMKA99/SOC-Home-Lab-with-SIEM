@@ -1,0 +1,216 @@
+\section{Literature Review and Background Knowledge}
+\label{sec:litreview}
+
+\subsection{Overview}
+
+This section establishes the background needed to understand the project. It
+begins with the function of a Security Operations Centre and the role of the
+analyst, then examines the technology that underpins it: Security Information
+and Event Management (SIEM) platforms, log management, and endpoint telemetry.
+It compares open-source and commercial SIEM options, outlines the main
+approaches to threat detection and the MITRE ATT\&CK framework, and considers
+the use of virtualised home labs for developing practical skills. The section
+closes with a review of related work and a statement of how this project
+differs from it.
+
+\subsection{Security Operations Centres}
+
+A Security Operations Centre (SOC) is the organisational function responsible
+for continuously monitoring an environment, detecting malicious or anomalous
+activity, and coordinating the response to security incidents. Rather than a
+single technology, a SOC is best understood as the combination of people,
+process, and tooling working together to maintain an organisation's security
+posture.
+
+SOC analysts are commonly organised into tiers. Tier~1 analysts perform the
+initial triage of incoming alerts, deciding quickly whether an alert
+represents genuine malicious activity (a true positive) or harmless behaviour
+that merely resembles it (a false positive). Alerts that cannot be dismissed
+are escalated to Tier~2 analysts for deeper investigation, and the most
+serious or complex cases reach Tier~3 staff who carry out incident response
+and proactive threat hunting. This triage-first model means that the largest
+share of day-to-day SOC work consists of rapidly reviewing, classifying, and
+documenting alerts.
+
+The structured handling of incidents that a SOC supports is described in
+NIST's incident-handling guidance, which frames incident response as a
+lifecycle of preparation; detection and analysis; containment, eradication and
+recovery; and post-incident activity~\cite{nist80061}. Detection and analysis
+--- the stage at which raw data becomes an actionable alert --- is the stage
+this project is most concerned with, and it depends almost entirely on the
+SOC's central tooling: the SIEM.
+
+\subsection{Security Information and Event Management}
+
+A SIEM platform is the technological core of a SOC. The term combines two
+earlier categories: Security Information Management (SIM), concerned with the
+long-term collection, storage, and analysis of log data, and Security Event
+Management (SEM), concerned with the real-time monitoring and correlation of
+events. A modern SIEM unifies both.
+
+In practice, a SIEM performs several core functions. It \textit{collects} log
+and event data from many different sources across an estate. It
+\textit{normalises} that data, parsing records written in many different
+formats into a consistent structure so they can be compared and searched. It
+\textit{correlates} events, applying rules that recognise patterns spanning
+multiple log sources --- for example, linking a series of failed logins
+followed by a success into a single suspicious sequence. It \textit{alerts}
+analysts when activity matches a rule of concern, and it provides
+\textit{dashboards and search} so that analysts can investigate. Finally, it
+\textit{retains} data for the periods required by forensic investigation and
+regulatory compliance.
+
+SIEM platforms have evolved considerably. Early systems were primarily log
+aggregators; later generations added correlation and alerting; current
+platforms increasingly incorporate user and entity behaviour analytics,
+threat-intelligence enrichment, and automated response. Throughout this
+evolution, the underlying premise has remained constant: an organisation
+cannot detect what it does not collect and analyse, and the SIEM is the
+instrument through which that collection and analysis happens.
+
+\subsection{Log Management and Endpoint Telemetry}
+
+Because detection ultimately rests on log data, the quality of that data is
+decisive. NIST's guidance on computer security log management emphasises that
+logs are essential not only for detecting attacks but also for understanding
+them after the fact, and that effective log management requires deliberate
+planning of what to collect and how to handle it~\cite{nist80092}. National
+guidance makes a similar point: logging must be designed with security
+outcomes in mind rather than left to operating-system defaults~\cite{ncsc}.
+
+This distinction --- between default logging and security-grade logging --- is
+central to the present project. On Windows, the standard Event Log captures
+useful records such as logon events and service changes, but it does not by
+itself provide the fine-grained visibility that behavioural detection
+requires. \textbf{Sysmon} (System Monitor), a free tool from Microsoft's
+Sysinternals suite, addresses this by logging detailed information about
+process creation, network connections, image loads, file-creation timestamps,
+and related activity, written to a dedicated event channel~\cite{sysmon}. This
+additional telemetry is what allows a SIEM to reason about \textit{behaviour}
+rather than merely about discrete system messages.
+
+Linux provides an equivalent capability through the Linux Audit framework and
+its userspace daemon, \texttt{auditd}. By defining audit rules, an
+administrator can record security-relevant system activity --- notably the
+execution of commands through the \texttt{execve} system call --- at the
+kernel level. As with Sysmon on Windows, this elevates the endpoint from
+producing general operational logs to producing detection-grade telemetry.
+
+The recurring principle across both platforms is that endpoint visibility is
+something that must be deliberately engineered. A SIEM connected only to
+default logs will see far less than one fed by purpose-configured endpoint
+telemetry.
+
+\subsection{Open-Source SIEM Platforms}
+
+SIEM capability is available both as commercial products and as open-source
+software. Commercial platforms such as Splunk, Microsoft Sentinel, and IBM
+QRadar are powerful and widely deployed, but they are typically licensed by
+data volume, which can make them costly --- and largely inaccessible for
+independent learning and experimentation.
+
+Several capable open-source alternatives exist, including the Elastic Stack
+(often deployed as Elastic Security), Security Onion, Graylog, and Wazuh. This
+project uses \textbf{Wazuh}. Wazuh originated as a fork of
+\textbf{OSSEC}, a long-established open-source host-based intrusion detection
+system~\cite{ossec}, and has since grown into a full SIEM and extended
+detection and response (XDR) platform~\cite{wazuhdocs}. A Wazuh deployment
+consists of a central \textit{manager} that analyses incoming data and applies
+detection rules, an \textit{indexer} that stores and searches events, a
+\textit{dashboard} that presents them, and lightweight \textit{agents}
+installed on monitored endpoints. Beyond log analysis and alerting, Wazuh
+provides file-integrity monitoring, configuration assessment, vulnerability
+detection, and the mapping of alerts to the MITRE ATT\&CK framework.
+
+For the purpose of building practical skills, an open-source platform offers
+clear advantages. It can be deployed at no cost, it can be examined and
+reconfigured freely, and --- importantly --- the concepts it teaches, such as
+agent-based collection, log parsing, rule-based correlation, and alert triage,
+transfer directly to commercial platforms. The specific product differs; the
+underlying discipline does not.
+
+\subsection{Threat Detection Approaches and the MITRE ATT\&CK Framework}
+
+SIEM platforms detect threats using two broad approaches.
+\textbf{Signature- or rule-based} detection matches activity against known
+patterns of malicious behaviour; it is precise and explainable, but it can
+only catch what has been defined in advance. \textbf{Anomaly-based} detection
+flags deviations from an established baseline of normal behaviour; it can in
+principle catch novel activity, but it is prone to raising alerts on benign
+deviations. NIST's guidance on intrusion detection and prevention systems
+describes both approaches and notes that practical deployments generally
+combine them, since each compensates for the other's
+weakness~\cite{nist80094}.
+
+A persistent operational problem for SOCs is \textit{alert fatigue}: when
+detection produces a high volume of low-value or false-positive alerts,
+analysts become desensitised, and genuine threats risk being overlooked among
+the noise. This makes the \textit{tuning} of detection --- raising true
+positives while suppressing false positives --- as important as detection
+itself.
+
+To make detection systematic, the security community has increasingly adopted
+the \textbf{MITRE ATT\&CK} framework: a structured, continually updated
+knowledge base of adversary tactics and techniques drawn from real-world
+observations of attacks~\cite{mitreattack}. ATT\&CK gives defenders a common
+vocabulary and a way to measure detection \textit{coverage} --- mapping which
+adversary techniques an environment can and cannot detect. While the detailed
+application of ATT\&CK belongs to the planned follow-on project on detection
+engineering, it is introduced here because it is the framework against which
+modern detection capability is now routinely assessed.
+
+\subsection{Virtualised Security Labs and the Skills Gap}
+
+The cybersecurity profession is widely recognised to face a shortage of
+skilled practitioners, and industry reporting consistently identifies a
+mismatch between the volume of security-relevant activity organisations must
+handle and the workforce available to handle it~\cite{verizondbir}. For new
+entrants specifically, the gap is often less about theoretical knowledge than
+about practical, tool-level experience.
+
+Virtualised home labs are a well-established response to this problem. Using a
+hypervisor such as VirtualBox or VMware, a learner can build a self-contained
+environment of multiple virtual machines on a single physical computer, at no
+cost and in complete isolation from any production network. Such a lab can be
+broken, rebuilt, and experimented on freely. For defensive security in
+particular, a home lab allows a learner to stand up a SIEM, generate security
+events safely, and practise the monitoring and triage workflow that a SOC role
+demands --- experience that is otherwise difficult to obtain before
+employment. Frameworks such as the CIS Critical Security Controls reinforce
+the value of this hands-on focus by expressing good security practice in terms
+of concrete, implementable actions rather than abstract principles~\cite{ciscontrols}.
+
+\subsection{Related Works}
+
+Building security home labs is an established practice, and several reference
+projects exist. The most prominent is \textbf{DetectionLab} by Chris
+Long~\cite{detectionlab}, an automated project that provisions a pre-built
+Windows domain instrumented with logging and monitoring tooling. DetectionLab
+is comprehensive and highly automated; its strength --- one-command
+provisioning --- is also a limitation for a learner, as the automation
+abstracts away the very build steps from which much of the understanding
+comes. A large body of community material, including vendor tutorials and
+blog write-ups, similarly documents Wazuh and Elastic-based lab builds, though
+such material varies in depth and is rarely presented as a structured,
+reproducible whole.
+
+This project is positioned deliberately against that backdrop, and differs in
+three respects. First, \textbf{the build is performed and documented manually
+and in full}: reproducibility is treated as a primary deliverable, with each
+step recorded so that the understanding --- not only the result --- is
+transferable. Second, \textbf{the evaluation is explicitly honest about
+realism}: rather than presenting a home lab as equivalent to a production SOC,
+the report sets out clearly where a single-machine virtualised environment
+does and does not represent real operations. Third, \textbf{the project is
+designed as the first stage of a two-part progression}: it establishes the
+monitoring foundation on which a planned second project, focused on detection
+engineering with MITRE ATT\&CK and Atomic Red Team~\cite{atomicredteam}, will
+build. The contribution is therefore not a novel tool, but a clear,
+honest, and reproducible account of how a credible SOC monitoring environment
+is constructed and operated using open-source software.
+
+% NOTE TO AUTHOR: The Related Works subsection currently cites only sources
+% that can be verified. To strengthen it for an academic standard, add 2-3
+% peer-reviewed papers (e.g. studies evaluating Wazuh or open-source SIEM
+% detection performance) found through your own literature search. Do not add
+% any reference you have not personally read and verified.

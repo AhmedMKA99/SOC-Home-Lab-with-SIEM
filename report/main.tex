@@ -1,0 +1,118 @@
+\documentclass[11pt,a4paper]{article}
+
+% ----------------------------------------------------------------------
+% Packages
+% ----------------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{parskip}
+\usepackage[hidelinks]{hyperref}
+
+% ----------------------------------------------------------------------
+% Formatting
+% ----------------------------------------------------------------------
+\definecolor{navy}{RGB}{46,64,87}
+\titleformat{\section}{\Large\bfseries\color{navy}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{navy}}{\thesubsection}{1em}{}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small SOC Home Lab with SIEM}
+\fancyhead[R]{\small M. A. Khalid}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\setlength{\parskip}{0.6em}
+
+% ----------------------------------------------------------------------
+% Title page content
+% ----------------------------------------------------------------------
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+
+    {\Huge\bfseries\color{navy} Building a Reproducible Security\\[0.3cm]
+    Operations Centre Home Lab with an\\[0.3cm]
+    Open-Source SIEM\par}
+
+    \vspace{1.5cm}
+    {\Large A Practical Study in Security Monitoring,\\ Endpoint Telemetry, and Alert Triage\par}
+
+    \vspace{2.5cm}
+    {\large\textbf{Muhammad Ahmed Khalid}\par}
+    \vspace{0.3cm}
+    {\large Personal Portfolio Project\par}
+
+    \vspace{2cm}
+    \begin{minipage}{0.85\textwidth}
+        \centering\itshape\small
+        This report documents a self-initiated technical project. It is not
+        submitted for academic credit. It accompanies the project repository
+        and is intended to demonstrate practical security-monitoring skills.
+    \end{minipage}
+
+    \vfill
+    {\large \today\par}
+\end{titlepage}
+
+% ----------------------------------------------------------------------
+% Abstract
+% ----------------------------------------------------------------------
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+Security Operations Centre (SOC) analysts depend on Security Information and
+Event Management (SIEM) platforms to detect and investigate threats, yet
+graduates entering the field rarely have hands-on experience with these tools.
+This project addresses that gap by designing, building, and documenting a
+fully functional SOC home lab using the open-source SIEM platform Wazuh.
+
+The lab consists of a SIEM server and two monitored endpoints --- a Windows
+host and a Linux host --- deployed on an isolated virtual network. Enhanced
+endpoint telemetry is provided by Sysmon on Windows and the Linux Audit
+framework on Linux. The environment is used to generate security events,
+observe the resulting alerts, and demonstrate a realistic analyst triage
+workflow. A core aim of the project is reproducibility: every step is
+documented so a third party can rebuild the lab from the accompanying
+repository.
+
+\vspace{1em}
+\noindent\textit{Keywords:} SIEM, Security Operations Centre, Wazuh, threat
+detection, endpoint telemetry, log analysis, home lab.
+
+% ----------------------------------------------------------------------
+% Table of contents
+% ----------------------------------------------------------------------
+\newpage
+\tableofcontents
+\newpage
+
+% ----------------------------------------------------------------------
+% Sections
+% ----------------------------------------------------------------------
+\input{sections/01-introduction}
+\input{sections/02-literature-review}
+\input{sections/03-methodology}
+\input{sections/04-implementation}
+\input{sections/05-evaluation}
+\input{sections/06-discussion}
+\input{sections/07-conclusions}
+
+% ----------------------------------------------------------------------
+% References
+% ----------------------------------------------------------------------
+\newpage
+\bibliographystyle{plain}
+\bibliography{references}
+\addcontentsline{toc}{section}{References}
+
+\end{document}

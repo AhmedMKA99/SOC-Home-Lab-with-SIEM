@@ -1,0 +1,29 @@
+# ======================================================================
+# VM appliances and ISO images — far too large for Git (35+ GB combined).
+# These are downloaded directly from their vendors; see the docs for links.
+# ======================================================================
+*.ova
+*.iso
+
+# ======================================================================
+# LaTeX build artefacts — the report PDF is committed, but not the
+# intermediate files generated during compilation.
+# ======================================================================
+*.aux
+*.log
+*.out
+*.toc
+*.lot
+*.lof
+*.bbl
+*.blg
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# ======================================================================
+# OS files
+# ======================================================================
+Thumbs.db
+.DS_Store
+desktop.ini
