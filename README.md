@@ -44,13 +44,14 @@ Wazuh Server      Windows Endpoint        Linux Endpoint
 
 - [x] Isolated lab network designed and created
 - [x] Wazuh SIEM server deployed, dashboard accessible
-- [x] Windows endpoint — Wazuh agent enrolled
-- [x] Windows endpoint — Sysmon installed and forwarded to Wazuh
-- [x] Linux endpoint — Wazuh agent enrolled
-- [ ] Linux endpoint — auditd command monitoring configured
-- [ ] Attack simulations and alert capture
-- [ ] Analyst triage and incident reporting
-- [ ] Full written report completed
+- [x] Windows endpoint, Wazuh agent enrolled
+- [x] Windows endpoint, Sysmon installed and forwarded to Wazuh
+- [x] Linux endpoint, Wazuh agent enrolled
+- [x] Linux endpoint, auditd command monitoring configured
+- [x] Attack simulations (4 completed) and alert capture
+- [x] First incident report written (INC-2026-001)
+- [ ] Additional incident write-ups for remaining simulations
+- [ ] Full formal report (Methodology, Implementation, Evaluation, Discussion, Conclusions)
 
 ---
 
@@ -65,11 +66,17 @@ Wazuh Server      Windows Endpoint        Linux Endpoint
 
 ### Documentation
 
-- [`docs/01-environment-and-architecture.md`](docs/01-environment-and-architecture.md) — lab design and network
-- [`docs/02-wazuh-deployment.md`](docs/02-wazuh-deployment.md) — SIEM server deployment
-- [`docs/03-windows-endpoint.md`](docs/03-windows-endpoint.md) — Windows endpoint, agent, and Sysmon
+- [`docs/01-environment-and-architecture.md`](docs/01-environment-and-architecture.md), lab design and network
+- [`docs/02-wazuh-deployment.md`](docs/02-wazuh-deployment.md), SIEM server deployment
+- [`docs/03-windows-endpoint.md`](docs/03-windows-endpoint.md), Windows endpoint, agent, and Sysmon
+- [`docs/04-linux-endpoint.md`](docs/04-linux-endpoint.md), Linux endpoint, agent, and auditd
 
-The compiled report is at [`report/main.pdf`](report/main.pdf).
+### Incident Reports
+
+- [`incident-reports/INC-2026-001_Windows_Account_Creation.docx`](incident-reports/INC-2026-001_Windows_Account_Creation.docx), full written incident report for the Windows account creation simulation
+- [`incident-reports/Incident_Report_Template.docx`](incident-reports/Incident_Report_Template.docx), reusable template for future incidents
+
+The compiled formal report is at [`report/main.pdf`](report/main.pdf).
 
 ---
 
