@@ -1,9 +1,57 @@
 \section{Methodology}
 \label{sec:methodology}
 
-\textit{This section is to be written. It will describe the general approach
-taken to the project --- the choice of an isolated virtualised environment,
-the selection of an open-source SIEM, the decision to document every step for
-reproducibility, and the iterative build--test--document method --- at a
-general level, leaving specific commands and configuration to the
-Implementation section.}
+\subsection{Overview}
+
+This section sets out the general approach taken to the project. It covers the design principles that shaped every subsequent decision, the build sequence philosophy, the simulation methodology used to validate the lab, and the treatment of documentation as a deliverable in its own right. Specific commands, configurations, and technical detail are deferred to Section~\ref{sec:implementation}.
+
+\subsection{Guiding Design Principles}
+
+Four principles were fixed at the start of the project and applied consistently to every subsequent decision.
+
+\textbf{Isolation.} The lab must never be able to reach or be reached by any production network or the wider internet in a way that permits the escape of simulated attack activity. This is fundamental for any environment in which security incidents are deliberately generated. It was addressed by deploying every virtual machine onto a dedicated VirtualBox NAT Network (\texttt{SOC-Lab}, subnet 10.0.10.0/24), with dashboard access from the host provided only through an explicit port-forwarding rule. No bridged adapters were used.
+
+\textbf{Open-source, reproducible tooling.} All security technology used in the lab is open source and free to obtain. This is not merely a cost decision; it also means that a third party can reproduce the environment from scratch without any licensing barrier, and that the underlying operation of each component can be inspected. Wazuh was selected as the SIEM, Sysmon as the Windows telemetry source, and the Linux Audit framework (\texttt{auditd}) as the Linux equivalent.
+
+\textbf{Reproducibility as a first-class deliverable.} Every step of the build was designed to be documented at the time it was performed, with the intention that the documentation would enable a third party to rebuild the environment from a clean state. Documentation was therefore not a task performed at the end of the project, but an ongoing output produced alongside every configuration change.
+
+\textbf{Honest evaluation.} A home lab cannot fully reproduce the scale, noise, or operational realities of a production SOC. Rather than obscure this, the project committed at the outset to evaluating its own limitations openly, on the basis that transparency about what a training environment can and cannot represent is more useful than an inflated claim of realism.
+
+\subsection{Build Sequence}
+
+The build followed an iterative pattern of \textit{build, test, document}, applied at each of seven milestones:
+
+\begin{enumerate}[label=\textbf{M\arabic*.},leftmargin=*]
+    \item Environment and network setup.
+    \item Wazuh server deployment and dashboard access.
+    \item Windows endpoint build, agent enrollment, and Sysmon configuration.
+    \item Linux endpoint build, agent enrollment, and \texttt{auditd} configuration.
+    \item Attack simulations across both endpoints.
+    \item Analyst triage and incident report writing.
+    \item Formal report authoring.
+\end{enumerate}
+
+Each milestone was completed before the next was started, and each produced its own documentation artefact. A component was considered complete only when the corresponding documentation was written to a standard that would allow reconstruction of that step by someone reading only the document.
+
+\subsection{Simulation Methodology}
+
+The attack simulations in milestone M5 were selected to satisfy three criteria simultaneously. First, they had to be safe: no actual malware, no attempts to escape the isolated network, no destructive actions on the host. Second, they had to be realistic: each simulation was chosen to represent a well documented adversary technique, ideally mappable to a MITRE ATT\&CK identifier, so that the resulting detections could be reasoned about in the same language a real SOC would use. Third, they had to span multiple detection classes so that the resulting alert coverage was not concentrated in a single Wazuh rule family.
+
+Four simulations were executed in total, targeting:
+
+\begin{itemize}[leftmargin=*]
+    \item Windows local account creation and privilege escalation (T1136.001, T1078.003).
+    \item Linux local account creation and privilege escalation via \texttt{sudo}.
+    \item Repeated failed \texttt{sudo} authentication attempts (T1110, credential access via brute force).
+    \item Windows hosts file modification, targeting File Integrity Monitoring capabilities.
+\end{itemize}
+
+For each simulation, evidence was captured in the form of dashboard screenshots showing the resulting Wazuh alerts, and each was reviewed as an analyst would review a real alert cluster in production.
+
+\subsection{Analyst Workflow}
+
+The project treated the analyst review of resulting alerts as a discipline in its own right, not merely a validation step. For the strongest of the four simulations, a full incident report was written in a professional format including MITRE ATT\&CK mapping, timeline reconstruction, technical analysis, impact assessment, response actions, and recommendations. This was intentional: writing up a simulated incident in the same form a real one would take is what turns a technical exercise into meaningful analyst practice.
+
+\subsection{Documentation Approach}
+
+Documentation for the project takes three forms. First, per-milestone Markdown documents in the project's \texttt{docs/} folder describe the build of each component, versioned in Git alongside the code. Second, dashboard screenshots for every simulation are stored in the \texttt{screenshots/} folder and referenced from the incident report. Third, this formal report (produced in \LaTeX) captures the project as a whole, including methodology, evaluation, and honest reflection on limitations. All three are published to a public GitHub repository so that the project is reviewable in full by any third party.

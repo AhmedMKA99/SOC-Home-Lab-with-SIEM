@@ -1,8 +1,59 @@
 \section{Discussion}
 \label{sec:discussion}
 
-\textit{This section is to be written. It will discuss the project as a whole,
-the challenges encountered during the build, and the research questions set
-out in Section~\ref{sec:rq} --- in particular the extent to which a
-single-machine virtualised lab realistically represents professional SOC
-work.}
+\subsection{Overview}
+
+This section revisits the three research questions posed in Section~\ref{sec:rq}, discusses the practical challenges encountered during the build, and offers an honest reflection on the limits of a home lab as a representation of professional SOC work.
+
+\subsection{Answering the Research Questions}
+
+\textbf{RQ1: Can a credible SOC monitoring environment, capable of collecting endpoint telemetry and generating meaningful alerts, be built using only free and open-source tools?}
+
+Yes. The completed lab demonstrates that a functional SIEM environment can be assembled from freely available components: Wazuh for the SIEM stack, Sysmon and \texttt{auditd} for enhanced host telemetry, and a hypervisor (VirtualBox) that is likewise free. The Wazuh appliance in particular removed a significant amount of setup friction, allowing the project to focus on analyst work rather than platform installation. All four simulations produced observable behaviour, three of them producing clear alert clusters within seconds. The environment is credible in the sense that its architecture and workflow map directly onto how production SOCs are built, even if the scale does not.
+
+\textbf{RQ2: What additional configuration is required beyond a default SIEM and operating-system installation to achieve detection-grade visibility?}
+
+The default installations of Wazuh, Windows, and Ubuntu together do not provide detection-grade telemetry. Specifically, three deliberate configuration steps were required:
+
+\begin{itemize}[leftmargin=*]
+    \item Installing and configuring \textbf{Sysmon} on Windows with a curated baseline (the SwiftOnSecurity configuration was used), and telling the Wazuh agent to forward the Sysmon event channel via an additional \texttt{<localfile>} entry.
+    \item Installing \textbf{auditd} on Linux and adding explicit rules for \texttt{execve} to capture command executions, keyed for identification.
+    \item Being aware that Wazuh's default \textbf{File Integrity Monitoring} runs on a scheduled cycle rather than in real-time, and that real-time monitoring must be explicitly enabled per-path if it is required.
+\end{itemize}
+
+The broader lesson is that ``detection-grade'' is not the same as ``installed''. A SIEM deployment can be running perfectly and still be blind to significant classes of attack simply because the underlying telemetry is not being collected. This is a well documented issue in production environments too; the lab reproduces it faithfully.
+
+\textbf{RQ3: To what extent does a single-machine virtualised lab realistically represent the work of a professional SOC, and where are the limits of that representation?}
+
+The lab is a genuine representation of the \textit{workflow} of Tier 1 SOC work: enrolling endpoints, ingesting telemetry, watching alerts, triaging events, escalating what matters, and writing up incidents in a form colleagues can act on. It is not a representation of the \textit{scale} at which real SOCs operate. Six honest limits are worth naming.
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Scale.} A production SOC monitors thousands to tens of thousands of endpoints, not two. Alert volumes are correspondingly higher and background noise is far more challenging to sift through.
+    \item \textbf{Adversary realism.} All simulations were self-executed and known in advance. A real analyst does not know which alerts represent real attacks and which are benign administrator activity.
+    \item \textbf{Tooling breadth.} A real SOC typically layers a SIEM alongside EDR, SOAR, threat intelligence platforms, and case-management tooling. The lab has the SIEM only.
+    \item \textbf{Response authority.} In the lab, ``containment'' meant simulating an action, not actually taking one against a production system with organisational consequences.
+    \item \textbf{Team dynamics.} SOC work in reality involves shift handovers, escalation to Tier 2 and Tier 3, coordination with incident response teams, and communication with non-technical stakeholders. None of that is present in a solo lab.
+    \item \textbf{Data volume.} Small telemetry volumes make correlation rules easier to reason about but obscure the challenge of managing indexer storage, retention policies, and query performance at scale.
+\end{itemize}
+
+The right way to characterise the lab, then, is as a faithful reproduction of the \textit{shape} of SOC work at Tier 1 level, not a reproduction of its scale, adversary realism, or organisational context. That distinction is important, both for the honesty of the project and for the graduate whose CV it appears on: overclaiming the lab's realism would be counterproductive at interview.
+
+\subsection{Challenges Encountered}
+
+Several practical challenges arose during the build.
+
+\textbf{Host RAM constraint.} With 16~GB of physical memory, running the Wazuh appliance, a Windows endpoint, and a Linux endpoint simultaneously left almost no headroom for the host operating system. This was addressed operationally by running one endpoint at a time during heavy work. A future iteration on a 32~GB host would remove this constraint entirely.
+
+\textbf{Wazuh agent service control on Windows.} Restarting the Wazuh agent service on Windows was inconsistent through PowerShell's \texttt{Restart-Service} cmdlet, requiring fallback to \texttt{Stop-Service -Force} followed by \texttt{Start-Service}. This is a minor operational quirk but a good example of the kind of practical friction that only becomes visible when actually running the tooling.
+
+\textbf{FIM configuration gap.} The Windows hosts file modification test (Simulation 4) produced no real-time alert, which was initially interpreted as a broken configuration. Investigation confirmed the behaviour was expected under Wazuh's default FIM scheduling. This shifted a perceived failure into a genuine SOC finding: default FIM behaviour is inadequate for real-time critical-file monitoring and must be explicitly tuned.
+
+\textbf{Screenshot and evidence discipline.} Capturing consistent, timestamped screenshots for every simulation required deliberate practice. Missing a ``before'' screenshot on Simulation 1 meant reconstructing the baseline event count from other observations. In a real SOC, this would be automated by the tooling; in a lab, it requires attention.
+
+\subsection{Wider Reflections}
+
+Two broader observations from the project seem worth recording.
+
+\textbf{Correlation is what makes detection useful.} Repeatedly across the simulations, the informative outcome was not a single alert but a cluster of related alerts fired within a short window. A Level 3 ``suspicious process'' alert on its own is uninteresting; the same alert alongside a ``users group changed'' event, a ``discovery command executed'' event, and an ``administrative privilege assigned'' event tells a clear story. This is why Wazuh's rule chain design matters, and why analyst intuition still matters even when tooling is sophisticated.
+
+\textbf{Documentation is a discipline of its own.} The choice to treat reproducibility as a first-class deliverable turned out to have a hidden benefit: writing the documentation forced clarity about each step, and repeatedly caught small omissions or ambiguities that would otherwise have been lost. In a professional context, this is the same discipline that separates useful runbooks from unhelpful ones.

@@ -1,7 +1,37 @@
 \section{Conclusions}
 \label{sec:conclusions}
 
-\textit{This section is to be written. It will conclude the report,
-summarising what the project achieved against its aim and objectives, and
-identifying future work --- including the planned second project on detection
-engineering with MITRE ATT\&CK.}
+\subsection{Summary}
+
+This project set out to design, deploy, and operate a functional Security Operations Centre home lab using only free and open-source software, and to document the build to a reproducible standard. Every objective from Section~\ref{sec:aim} was met. A working Wazuh SIEM was deployed on an isolated virtual network. Two monitored endpoints, one Windows and one Linux, were enrolled with detection-grade telemetry provided by Sysmon and \texttt{auditd} respectively. Four attack simulations were executed, three of which produced clear alert clusters within 60 seconds of the triggering action, and the fourth produced a useful finding about the default behaviour of File Integrity Monitoring. One simulation was written up in full as a professional incident report following a standard analyst format, and the entire project (build documents, simulation evidence, incident reports, and this formal report) has been published to a public GitHub repository.
+
+More importantly, the project produced something less tangible than any single artefact: sustained, hands-on practice with the workflow that real Tier 1 SOC analysts perform every day. Deploying a SIEM, enrolling endpoints, engineering telemetry, watching alerts, correlating clusters, writing up incidents, and reflecting honestly on limitations, all of these are the discipline of security operations, and none of them are taught by textbook alone.
+
+\subsection{Answering the Aim}
+
+The aim of the project was:
+
+\begin{quote}
+\itshape
+To design, deploy, and operate a functional SOC home lab built on an open-source SIEM, capable of collecting and analysing security telemetry from multiple endpoints and supporting a realistic analyst triage workflow.
+\end{quote}
+
+This aim has been met in full. The environment collects and analyses telemetry from two heterogeneous endpoints in real time, produces meaningful alerts in response to realistic adversary techniques, supports genuine analyst triage through the Wazuh dashboard, and has produced at least one incident report in professional analyst form. The lab is not a production system, and the report has been transparent throughout about the difference. But at the level of shape, workflow, and skill development, the aim is achieved.
+
+\subsection{Future Work}
+
+Several extensions to this work are already planned or worth noting.
+
+\textbf{Enable real-time FIM on critical paths.} The finding from Simulation 4 pointed to a genuine configuration gap. A short follow-on task would enable real-time monitoring on high-value files (the Windows \texttt{hosts} file, \texttt{/etc/passwd} and \texttt{/etc/shadow} on Linux, plus any application-specific critical files) and re-run the FIM simulation to confirm the improvement.
+
+\textbf{Detection engineering with MITRE ATT\&CK.} A second, planned project extends the lab in a specific direction: using it as the environment for structured detection engineering. Atomic Red Team will be used to emulate a set of ATT\&CK techniques against the endpoints, with the resulting telemetry used to author and test Sigma or Wazuh custom rules for each. The output would be a documented detection catalogue mapped to ATT\&CK. This is a natural next step, and the current SOC lab is the foundation on which it depends.
+
+\textbf{Threat intelligence integration.} A further extension would integrate threat intelligence feeds (for example, MISP or free STIX/TAXII sources) so that indicators of compromise from external sources can be enriched against the lab's own telemetry.
+
+\textbf{Purple team exercises.} Beyond isolated simulations, a mature version of the lab would host structured purple team exercises: an offensive scenario is played end-to-end, the defensive side attempts detection, and gaps are captured formally. This is a more demanding exercise than isolated technique testing and would substantially deepen the analyst skill development.
+
+\textbf{Scaling considerations.} At any point where the lab is expanded to more endpoints or more data sources, the storage and query performance of the Wazuh indexer become relevant. A further iteration on a larger host, or in a small cloud environment, would allow this dimension to be explored.
+
+\subsection{Closing Reflection}
+
+The most important outcome of this project is not the working lab, nor even the incident report or the documentation. It is the demonstration that a graduate can, without prior professional experience, stand up a real defensive security environment from scratch, exercise it against realistic adversary techniques, and produce artefacts that stand up to scrutiny. That is the kind of practical, evidenced foundation on which a career in security operations is built.
