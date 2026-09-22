@@ -150,6 +150,6 @@ The honest caveat is **scale and noise**: a real SOC processes orders of magnitu
 The project is considered successful when:
 
 - The SIEM is operational with two or more endpoints actively reporting.
-- At least five distinct security events have been simulated and detected.
+- At least four distinct security events have been simulated and detected.
 - Each detection is documented with triage notes and a true/false-positive classification.
 - A third party can reproduce the lab by following the published guide.

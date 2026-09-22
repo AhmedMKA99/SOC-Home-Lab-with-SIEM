@@ -1,57 +1,168 @@
 \section{Methodology}
 \label{sec:methodology}
 
-\subsection{Overview}
+\subsection{Overall Approach}
 
-This section sets out the general approach taken to the project. It covers the design principles that shaped every subsequent decision, the build sequence philosophy, the simulation methodology used to validate the lab, and the treatment of documentation as a deliverable in its own right. Specific commands, configurations, and technical detail are deferred to Section~\ref{sec:implementation}.
+The project followed an iterative \textbf{build $\rightarrow$ verify $\rightarrow$
+document} cycle. Each component of the lab was deployed in isolation, its
+correct operation was confirmed with a small controlled test before the next
+component was added, and the steps used were recorded at the time they were
+performed rather than reconstructed after the fact. This approach was chosen
+for three reasons. First, the fastest way to discover a broken assumption in a
+security build is to test the smallest possible piece before extending it.
+Second, documentation written contemporaneously is meaningfully more accurate
+than documentation written after the fact, particularly for the exact commands
+and configuration values that determine whether a deployment will reproduce.
+Third, the reproducibility of the lab was itself a project deliverable, so the
+documentation was treated as a first-class artefact throughout, not as a
+retrospective write-up.
 
-\subsection{Guiding Design Principles}
+\subsection{Environment Design}
+\label{sec:env-design}
 
-Four principles were fixed at the start of the project and applied consistently to every subsequent decision.
+The lab was designed around three constraints and one non-negotiable safety
+requirement. The constraints were: a single physical host with 16 GB of RAM,
+one hypervisor (Oracle VirtualBox), and the requirement that all components
+should be reproducible on any consumer-grade Windows machine. The safety
+requirement was that the environment must be fully isolated from any
+production network: no traffic from the lab could reach the wider Internet or
+the host network without deliberate configuration.
 
-\textbf{Isolation.} The lab must never be able to reach or be reached by any production network or the wider internet in a way that permits the escape of simulated attack activity. This is fundamental for any environment in which security incidents are deliberately generated. It was addressed by deploying every virtual machine onto a dedicated VirtualBox NAT Network (\texttt{SOC-Lab}, subnet 10.0.10.0/24), with dashboard access from the host provided only through an explicit port-forwarding rule. No bridged adapters were used.
+Isolation was achieved by placing all virtual machines on a VirtualBox
+\textit{NAT network} named \texttt{SOC-Lab} on the address range
+\texttt{10.0.10.0/24}. This is distinct from VirtualBox's default NAT
+mode: a NAT network permits VM-to-VM communication on the same segment while
+still translating outbound traffic through the host, which was necessary for
+initial package downloads but was subsequently locked down. The address plan
+allocated one address per role: \texttt{10.0.10.3} for the SIEM manager,
+\texttt{10.0.10.4} for the Windows endpoint, and \texttt{10.0.10.5} for the
+Linux endpoint. Keeping the address assignments deterministic simplified both
+the Wazuh agent enrolment and the later analysis, since the source of every
+log line could be identified from its IP alone.
 
-\textbf{Open-source, reproducible tooling.} All security technology used in the lab is open source and free to obtain. This is not merely a cost decision; it also means that a third party can reproduce the environment from scratch without any licensing barrier, and that the underlying operation of each component can be inspected. Wazuh was selected as the SIEM, Sysmon as the Windows telemetry source, and the Linux Audit framework (\texttt{auditd}) as the Linux equivalent.
+The 16 GB host RAM constraint meant that not all VMs could run
+simultaneously under load. In practice, the Wazuh manager was always
+running (its role required continuous operation to receive telemetry), and
+the two endpoints were run in alternation for heavy testing.
 
-\textbf{Reproducibility as a first-class deliverable.} Every step of the build was designed to be documented at the time it was performed, with the intention that the documentation would enable a third party to rebuild the environment from a clean state. Documentation was therefore not a task performed at the end of the project, but an ongoing output produced alongside every configuration change.
+\subsection{Tool Selection}
+\label{sec:tools}
 
-\textbf{Honest evaluation.} A home lab cannot fully reproduce the scale, noise, or operational realities of a production SOC. Rather than obscure this, the project committed at the outset to evaluating its own limitations openly, on the basis that transparency about what a training environment can and cannot represent is more useful than an inflated claim of realism.
+Every tool used in the project was selected against three criteria: it had to
+be free or open-source, it had to be genuinely used in industry, and its
+core concepts had to transfer to commercial equivalents rather than being
+specific to a hobbyist stack. The chosen stack is summarised in
+Table~\ref{tab:toolselection}.
 
-\subsection{Build Sequence}
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{p{3.5cm} p{4.5cm} p{6cm}}
+\toprule
+\textbf{Category} & \textbf{Chosen Tool} & \textbf{Rationale} \\
+\midrule
+Hypervisor & Oracle VirtualBox & Free, cross-platform, widely used in student and lab contexts. \\
+SIEM / XDR & Wazuh 4.14.5 & Open-source, deployed in production by real organisations, forked from OSSEC with an active development community. \\
+Windows telemetry & Sysinternals Sysmon with SwiftOnSecurity config & Industry standard for detection-grade Windows logging; the SwiftOnSecurity baseline is the de facto sensible default. \\
+Linux telemetry & Linux Audit (\texttt{auditd}) with \texttt{execve} rules & The Linux equivalent of Sysmon: kernel-level command execution visibility. \\
+Endpoint OS (Windows) & Microsoft WinDev 2407 evaluation VM & Legitimate free-to-use Windows 11 image intended for developer testing. \\
+Endpoint OS (Linux) & Ubuntu 26.04 LTS Desktop & Common, well-documented server distribution with LTS support. \\
+Documentation & Markdown + LaTeX & Markdown for build docs (renderable natively on GitHub), LaTeX for the formal report. \\
+\bottomrule
+\end{tabular}
+\caption{Tool selection with rationale.}
+\label{tab:toolselection}
+\end{table}
 
-The build followed an iterative pattern of \textit{build, test, document}, applied at each of seven milestones:
+The most significant of these choices is \textbf{Wazuh}, which was preferred
+over Splunk Free (data cap and no long-term retention), Elastic Security
+(more complex initial deployment for a single learner), and Security Onion
+(more focused on network detection than endpoint monitoring in the shape
+required for this project). Wazuh's out-of-the-box combination of manager,
+indexer, dashboard, and agent, with a pre-populated ruleset that already
+recognises common attack patterns, offered the best balance of depth and
+setup effort for a single-analyst home lab.
 
-\begin{enumerate}[label=\textbf{M\arabic*.},leftmargin=*]
-    \item Environment and network setup.
-    \item Wazuh server deployment and dashboard access.
-    \item Windows endpoint build, agent enrollment, and Sysmon configuration.
-    \item Linux endpoint build, agent enrollment, and \texttt{auditd} configuration.
-    \item Attack simulations across both endpoints.
-    \item Analyst triage and incident report writing.
-    \item Formal report authoring.
+\subsection{Endpoint Telemetry Strategy}
+\label{sec:telemetry-strategy}
+
+A recurring theme in the literature review was that default operating-system
+logs are insufficient for meaningful behavioural detection. The methodology
+therefore treated \textit{deliberate endpoint telemetry enhancement} as a
+mandatory step, not an optional one. Both endpoints were provisioned with
+their platform's equivalent of detection-grade logging.
+
+On \textbf{Windows}, this meant installing Sysmon with the SwiftOnSecurity
+baseline configuration and then extending the Wazuh agent configuration to
+forward the \texttt{Microsoft-Windows-Sysmon/Operational} event channel to the
+manager. Without this addition, the Wazuh agent would have received only
+the standard Windows Security Event Log; with it, the agent received the
+process-creation, network-connection, and file-modification records that
+modern detection depends on.
+
+On \textbf{Linux}, the equivalent step was installing the \texttt{auditd}
+daemon and adding audit rules for the \texttt{execve} system call, tagged with
+the \texttt{audit-wazuh-c} key so command-execution events could be
+distinguished from other audit traffic. Wazuh's default Linux agent
+configuration already parses \texttt{/var/log/audit/audit.log} once auditd is
+present, so no further Wazuh-side configuration was required.
+
+This paired approach --- Sysmon on Windows, auditd on Linux --- reflects real
+SOC practice, where both platforms need their own deliberate telemetry
+enhancement to produce comparable visibility.
+
+\subsection{Attack Simulation Design}
+\label{sec:sim-design}
+
+Attack simulations were designed against three principles.
+
+\textbf{First, safety.} All simulations used benign emulated behaviour rather
+than live malware or real exploitation. Where a technique required the
+creation of an artefact (a user, a group, a file entry), the artefact was
+reversible; where it required a command, the command was benign in isolation
+and only meaningful in aggregate. This is consistent with community
+guidance on running attack simulations in home labs and with the intent of
+tooling such as Atomic Red Team~\cite{atomicredteam}.
+
+\textbf{Second, coverage across the two platforms.} The simulations were
+distributed across Windows and Linux endpoints, and across multiple ATT\&CK
+tactic categories (specifically Persistence, Privilege Escalation, Credential
+Access, and Defence Evasion), rather than concentrated on a single technique
+family. This ensured that the resulting evaluation could speak to lab
+coverage as a whole, not merely to how well one technique was detected.
+
+\textbf{Third, at least one intentionally negative test.} One simulation was
+designed with the expectation that the default Wazuh configuration would
+\textit{not} detect the activity, because a lab that only ever produces
+successful detections is not being honestly stress-tested. A negative result,
+when it identifies a specific configuration gap that can be closed, is as
+valuable as a positive result. This is discussed further in the Evaluation
+(Section~\ref{sec:evaluation}) and Discussion (Section~\ref{sec:discussion}).
+
+\subsection{Triage and Documentation Approach}
+\label{sec:triage-approach}
+
+Each simulation was followed by a structured triage exercise mimicking the
+work of a Tier~1 SOC analyst. The steps applied to every simulation were:
+
+\begin{enumerate}[label=\textbf{T\arabic*.},leftmargin=*]
+    \item Observe the Wazuh dashboard within a defined window (typically one
+          minute) after the simulated activity was performed.
+    \item Identify the alerts produced, capturing rule ID, rule description,
+          and severity level for each.
+    \item Classify each alert as a true positive (correctly identified
+          malicious-shaped activity), a false positive (a benign event
+          erroneously flagged), or expected background noise.
+    \item Map the observed activity to the corresponding MITRE ATT\&CK
+          technique(s) where applicable.
+    \item Capture a screenshot of the dashboard state as evidence.
+    \item Write a full analyst-style incident report for the simulation,
+          treating the events as if they were unplanned.
 \end{enumerate}
 
-Each milestone was completed before the next was started, and each produced its own documentation artefact. A component was considered complete only when the corresponding documentation was written to a standard that would allow reconstruction of that step by someone reading only the document.
-
-\subsection{Simulation Methodology}
-
-The attack simulations in milestone M5 were selected to satisfy three criteria simultaneously. First, they had to be safe: no actual malware, no attempts to escape the isolated network, no destructive actions on the host. Second, they had to be realistic: each simulation was chosen to represent a well documented adversary technique, ideally mappable to a MITRE ATT\&CK identifier, so that the resulting detections could be reasoned about in the same language a real SOC would use. Third, they had to span multiple detection classes so that the resulting alert coverage was not concentrated in a single Wazuh rule family.
-
-Four simulations were executed in total, targeting:
-
-\begin{itemize}[leftmargin=*]
-    \item Windows local account creation and privilege escalation (T1136.001, T1078.003).
-    \item Linux local account creation and privilege escalation via \texttt{sudo}.
-    \item Repeated failed \texttt{sudo} authentication attempts (T1110, credential access via brute force).
-    \item Windows hosts file modification, targeting File Integrity Monitoring capabilities.
-\end{itemize}
-
-For each simulation, evidence was captured in the form of dashboard screenshots showing the resulting Wazuh alerts, and each was reviewed as an analyst would review a real alert cluster in production.
-
-\subsection{Analyst Workflow}
-
-The project treated the analyst review of resulting alerts as a discipline in its own right, not merely a validation step. For the strongest of the four simulations, a full incident report was written in a professional format including MITRE ATT\&CK mapping, timeline reconstruction, technical analysis, impact assessment, response actions, and recommendations. This was intentional: writing up a simulated incident in the same form a real one would take is what turns a technical exercise into meaningful analyst practice.
-
-\subsection{Documentation Approach}
-
-Documentation for the project takes three forms. First, per-milestone Markdown documents in the project's \texttt{docs/} folder describe the build of each component, versioned in Git alongside the code. Second, dashboard screenshots for every simulation are stored in the \texttt{screenshots/} folder and referenced from the incident report. Third, this formal report (produced in \LaTeX) captures the project as a whole, including methodology, evaluation, and honest reflection on limitations. All three are published to a public GitHub repository so that the project is reviewable in full by any third party.
+Producing an incident report for every simulation --- rather than only
+recording the raw alerts --- was a deliberate methodological choice. It forces
+a level of structured reasoning about impact, response, and remediation that
+is not required when merely observing that an alert appeared. The incident
+report artefacts are stored in the project's \texttt{incident-reports/}
+directory and are considered part of the deliverable set.

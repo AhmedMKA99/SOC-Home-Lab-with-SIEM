@@ -4,7 +4,7 @@ A hands-on Security Operations Centre (SOC) home lab built on the open-source SI
 
 This project demonstrates practical blue-team skills — SIEM deployment, endpoint telemetry, log collection, and alert triage — and is fully documented so the environment can be reproduced from scratch.
 
-> **Status:** In progress. The lab is built and operational; attack simulations and the full written report are being completed. Build progress is tracked below.
+> **Status:** Complete. The lab is built and operational, four attack simulations have been executed and triaged, four analyst-style incident reports have been written, and the full formal report is compiled at [`report/main.pdf`](report/main.pdf).
 
 ---
 
@@ -49,9 +49,8 @@ Wazuh Server      Windows Endpoint        Linux Endpoint
 - [x] Linux endpoint, Wazuh agent enrolled
 - [x] Linux endpoint, auditd command monitoring configured
 - [x] Attack simulations (4 completed) and alert capture
-- [x] First incident report written (INC-2026-001)
-- [ ] Additional incident write-ups for remaining simulations
-- [ ] Full formal report (Methodology, Implementation, Evaluation, Discussion, Conclusions)
+- [x] Incident reports written for all four simulations (INC-2026-001 to 004)
+- [x] Full formal report compiled (Introduction, Literature Review, Methodology, Implementation, Evaluation, Discussion, Conclusions)
 
 ---
 
@@ -73,8 +72,10 @@ Wazuh Server      Windows Endpoint        Linux Endpoint
 
 ### Incident Reports
 
-- [`incident-reports/INC-2026-001_Windows_Account_Creation.docx`](incident-reports/INC-2026-001_Windows_Account_Creation.docx), full written incident report for the Windows account creation simulation
-- [`incident-reports/Incident_Report_Template.docx`](incident-reports/Incident_Report_Template.docx), reusable template for future incidents
+- [`incident-reports/INC-2026-001_Windows_Account_Creation.docx`](incident-reports/INC-2026-001_Windows_Account_Creation.docx), Windows local account creation with privilege escalation (Sim 1)
+- [`incident-reports/INC-2026-002_Linux_Account_Creation.docx`](incident-reports/INC-2026-002_Linux_Account_Creation.docx), Linux local account creation with sudo privilege (Sim 2)
+- [`incident-reports/INC-2026-003_Linux_Failed_Authentication.docx`](incident-reports/INC-2026-003_Linux_Failed_Authentication.docx), repeated failed sudo authentication (Sim 3)
+- [`incident-reports/INC-2026-004_Windows_FIM_Detection_Gap.docx`](incident-reports/INC-2026-004_Windows_FIM_Detection_Gap.docx), FIM detection gap on the Windows hosts file (Sim 4, negative-result finding)
 
 The compiled formal report is at [`report/main.pdf`](report/main.pdf).
 

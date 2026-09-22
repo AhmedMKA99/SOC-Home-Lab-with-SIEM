@@ -3,88 +3,179 @@
 
 \subsection{Overview}
 
-This section describes the specific technical implementation of the SOC home lab, at the level of concrete commands, configurations, and observed behaviour. It is deliberately more detailed than the Methodology section, and complements the Markdown build documents in the accompanying repository. Where relevant, the corresponding milestone from Section~\ref{sec:methodology} is noted.
+This section walks through the actual build of the lab: the network, the SIEM
+manager, the two endpoints, the endpoint telemetry enhancements, and the
+verification that logs flow end to end. It corresponds to the full
+step-by-step documentation stored in the project repository under
+\texttt{docs/}, distilled here into narrative form. The precise commands,
+configuration snippets, and screenshots referenced in this section are held in
+those source documents so this report can remain readable while still being
+independently reproducible.
 
-\subsection{Host and Hypervisor (M1)}
+\subsection{Network and Virtualisation}
+\label{sec:impl-network}
 
-The lab was built on a Windows 11 host machine equipped with an AMD Ryzen 5 8400F CPU (6 cores, 12 threads), 16~GB of RAM, and around 297~GB of free storage. Oracle VirtualBox version 7.2.8 was chosen as the hypervisor for its ubiquity, its native NAT Network feature, and its cross-platform compatibility.
+Oracle VirtualBox 7.2.8 was used to host all virtual machines. A dedicated
+\textit{NAT network} named \texttt{SOC-Lab} was created on the address range
+\texttt{10.0.10.0/24} as described in Section~\ref{sec:env-design}. The NAT
+network mode was chosen deliberately over the more permissive Bridged mode:
+VMs on a NAT network can reach each other but cannot be reached from, or
+directly reach, the host network without deliberate port forwarding. This
+provides the isolation guarantee that a security lab must offer by default.
 
-Given the 16~GB RAM constraint, a deliberate operational policy was adopted: the Wazuh server and one endpoint are run at a time during heavy work, with the second endpoint powered off. Both endpoints can run simultaneously for lighter tasks. This is a genuine limitation but does not invalidate the design.
+Three virtual machines were provisioned onto this network:
 
-\subsection{Isolated Lab Network (M1)}
+\begin{itemize}[leftmargin=*]
+    \item The Wazuh server VM at \texttt{10.0.10.3}.
+    \item The Windows endpoint VM at \texttt{10.0.10.4}.
+    \item The Linux endpoint VM at \texttt{10.0.10.5}.
+\end{itemize}
 
-A dedicated VirtualBox NAT Network named \texttt{SOC-Lab} was created for the entire lab, on the subnet 10.0.10.0/24 with DHCP enabled and IPv6 disabled. Every virtual machine in the project was attached to this network and only this network. To allow the Wazuh dashboard to be reached from the host browser without exposing the lab to any real network, a single port-forwarding rule was defined:
+Fixed addressing was preferred over DHCP for a lab of this size, so that
+sources in the Wazuh dashboard would always resolve to the same host without
+needing to cross-reference DHCP leases.
 
-\begin{quote}
-\texttt{VBoxManage natnetwork modify --netname "SOC-Lab" \\
---port-forward-4 "wazuh-dashboard:tcp:[]:8443:[10.0.10.3]:443"}
+\subsection{Wazuh SIEM Deployment}
+\label{sec:impl-wazuh}
+
+The Wazuh server was deployed from the official
+\texttt{wazuh-4.14.5.ova} appliance provided by Wazuh Inc. The appliance is
+a pre-built all-in-one deployment containing the three Wazuh components
+required to operate the platform:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{wazuh-manager} --- the analysis and rule engine that receives
+          agent telemetry, applies detection rules, and generates alerts.
+    \item \textbf{wazuh-indexer} --- the storage and search layer, built on
+          OpenSearch, that persists alerts and events so they can be queried
+          and displayed.
+    \item \textbf{wazuh-dashboard} --- the browser-based user interface, built
+          on OpenSearch Dashboards, that presents alerts and enables analyst
+          workflows.
+\end{itemize}
+
+Using the appliance rather than performing a from-source install was a
+pragmatic choice: it reduced the initial deployment to VM import and network
+attachment, which allowed the project to move on to the more instructive
+work of endpoint configuration and detection engineering. The trade-off is
+that the appliance is opaque compared to a from-source deployment; a
+production build would follow Wazuh's documented distributed installation
+procedure so component sizing could be tuned per role.
+
+After boot, the appliance's default credentials were rotated, its network
+interface was confirmed on \texttt{10.0.10.3}, and the dashboard was
+reached at \texttt{https://10.0.10.3} from the host machine. The dashboard's
+first-run wizard was used to generate agent deployment commands for the two
+endpoints.
+
+\subsection{Windows Endpoint}
+\label{sec:impl-windows}
+
+The Windows endpoint was provisioned from Microsoft's \texttt{WinDev2407Eval}
+appliance (Windows 11), a free evaluation image intended for developer
+testing. This choice avoided the licensing and installation overhead of a
+manual Windows install while remaining fully representative of a modern
+Windows endpoint.
+
+Three configuration steps were performed after the VM was joined to the
+\texttt{SOC-Lab} network:
+
+First, the \textbf{Wazuh agent} was installed using the PowerShell one-liner
+generated by the manager's Deploy new agent wizard. The wizard tailored the
+command with the manager IP (\texttt{10.0.10.3}) and the assigned agent name
+(\texttt{Windows-Endpoint}). The agent service was started with
+\texttt{NET START WazuhSvc} and appeared as \texttt{Active} in the
+manager's agent list within seconds.
+
+Second, \textbf{Sysmon} was installed with the SwiftOnSecurity baseline
+configuration. Sysmon writes to a dedicated Windows event channel,
+\texttt{Microsoft-Windows-Sysmon/Operational}, which is separate from the
+Windows Security event log and requires explicit inclusion in the Wazuh
+agent's configuration to be forwarded. The following block was added to the
+agent's \texttt{ossec.conf} inside the \texttt{<ossec\_config>} element:
+
+\begin{quote}\small
+\texttt{<localfile>}\\
+\texttt{~~<location>Microsoft-Windows-Sysmon/Operational</location>}\\
+\texttt{~~<log\_format>eventchannel</log\_format>}\\
+\texttt{</localfile>}
 \end{quote}
 
-The result is that the dashboard is reachable at \texttt{https://localhost:8443} from the host, while the lab itself remains fully isolated. All three virtual machines received DHCP-assigned addresses in the 10.0.10.0/24 range:
+The agent service was restarted, and within one minute the manager began
+receiving events under the \texttt{sysmon}, \texttt{sysmon\_event1}, and
+\texttt{sysmon\_event\_3} rule groups. This confirmed that the SwiftOnSecurity
+configuration was producing telemetry and that the Wazuh manager's Sysmon
+decoder was correctly parsing the incoming events.
 
-\begin{center}
-\begin{tabular}{ll}
-\toprule
-\textbf{Component} & \textbf{Address} \\
-\midrule
-NAT gateway & 10.0.10.1 \\
-Wazuh server & 10.0.10.3 \\
-Windows endpoint & 10.0.10.4 \\
-Linux endpoint & 10.0.10.5 \\
-\bottomrule
-\end{tabular}
-\end{center}
+Third, a \textbf{baseline of normal activity} was observed for approximately
+twenty-four hours. This served two purposes: it validated that the agent
+would continue reporting stably across VM restarts, and it established a
+reference of what "clean" telemetry from the endpoint looked like, so that
+subsequent simulation-generated alerts could be distinguished from routine
+noise.
 
-\subsection{Wazuh Server Deployment (M2)}
+Full step-by-step commands, screenshots, and verification outputs are
+recorded in \texttt{docs/03-windows-endpoint.md} in the project repository.
 
-The Wazuh server was deployed from the official Wazuh OVA appliance (version 4.14.5), which ships the manager, indexer, and dashboard pre-installed and pre-configured. Using the appliance in place of a manual install removed setup friction and allowed the project to focus on SOC work rather than on Wazuh installation.
+\subsection{Linux Endpoint}
+\label{sec:impl-linux}
 
-Import settings adjusted for the 16~GB host:
+The Linux endpoint was provisioned by performing a clean Ubuntu 26.04 LTS
+Desktop install from the official ISO. Unlike Wazuh and Windows, both of which
+were imported from vendor-provided appliances, the Linux install was carried
+out manually. This was a deliberate choice: the Linux install exposed
+first-hand the number of small decisions (partitioning, timezone, initial
+user creation) that shape a system's behaviour and that an appliance import
+hides.
 
-\begin{center}
-\begin{tabular}{ll}
-\toprule
-\textbf{Setting} & \textbf{Value} \\
-\midrule
-Base memory & 6144 MB \\
-CPU & 2 vCPUs \\
-Network adapter & NAT Network \texttt{SOC-Lab} \\
-\bottomrule
-\end{tabular}
-\end{center}
+The Wazuh agent was installed on the Ubuntu VM using the manager's
+wizard-generated \texttt{wget} and \texttt{dpkg} command, then enabled and
+started as a systemd unit. It appeared as \texttt{Active} in the dashboard
+with \texttt{agent.id} 002.
 
-On first boot, the appliance received the address 10.0.10.3 via DHCP. The dashboard was then accessible over HTTPS at \texttt{https://localhost:8443} via the port-forwarding rule, with the appliance's default credentials (username \texttt{admin}, password \texttt{admin}). These credentials are default lab values; a production deployment would rotate them immediately.
+The critical configuration step on Linux was adding \textbf{auditd
+command-execution monitoring}. Wazuh's default Linux agent configuration
+reads system logs from \texttt{/var/log/syslog}, \texttt{/var/log/auth.log},
+and, if present, \texttt{/var/log/audit/audit.log}. However, Ubuntu Desktop
+does not include the Linux Audit framework by default, so \texttt{auditd} was
+installed via \texttt{apt}, and audit rules were added to track every
+invocation of the \texttt{execve} system call --- which is called whenever
+any command is executed on the system:
 
-\subsection{Windows Endpoint (M3)}
+\begin{quote}\small
+\texttt{-a exit,always -F arch=b64 -S execve -k audit-wazuh-c}\\
+\texttt{-a exit,always -F arch=b32 -S execve -k audit-wazuh-c}
+\end{quote}
 
-The Windows endpoint was provisioned from Microsoft's freely provided \texttt{WinDev2407Eval.ova} appliance (Windows 11, 90 day evaluation), imported with 4096~MB of RAM and 2 vCPUs, and attached to the \texttt{SOC-Lab} network. The endpoint received DHCP address 10.0.10.4.
+The \texttt{-k audit-wazuh-c} key identifies these events as
+command-execution audits, so they can be selected in Wazuh queries. After
+the rules were loaded with \texttt{augenrules --load}, the Wazuh agent was
+restarted and began forwarding \texttt{audit.log} entries alongside the
+default log sources.
 
-The Wazuh Windows agent was installed using the command generated by the dashboard's \textit{Deploy new agent} wizard, pointed at manager address 10.0.10.3 with agent name \texttt{Windows-Endpoint} in the \texttt{default} group. The service was then started (\texttt{NET START WazuhSvc}) and the agent appeared as Active on the dashboard.
+At this point, both endpoints were producing detection-grade telemetry, and
+the milestone identified in the project overview as M4 (both endpoints
+delivering enhanced telemetry to the SIEM) was met. Full commands, output,
+and verification screenshots are recorded in
+\texttt{docs/04-linux-endpoint.md}.
 
-Because the default Windows Event Log does not by itself provide adequate visibility for behavioural detection, \textbf{Sysmon} was installed with the widely-adopted SwiftOnSecurity baseline configuration. This provides detection-grade endpoint telemetry, including process creation, network connections, image loads, and file activity. Sysmon logs to the \texttt{Microsoft-Windows-Sysmon/Operational} event channel; the Wazuh agent was configured to read this channel by adding a \texttt{<localfile>} entry to \texttt{C:\textbackslash{}Program Files (x86)\textbackslash{}ossec-agent\textbackslash{}ossec.conf}, then restarting the agent.
+\subsection{Ingestion Verification and Baselining}
+\label{sec:impl-verify}
 
-\subsection{Linux Endpoint (M3--M4)}
+Once both endpoints were reporting, three verification checks were performed
+before any attack simulation was attempted. First, the number of events per
+minute in the dashboard's \textit{Threat Hunting} view was observed for each
+endpoint over a five-minute window and cross-referenced against known
+activity on that endpoint (for example, opening a text editor on the Linux
+endpoint produced a visible spike in \texttt{execve} events). Second, the
+alert-level distribution was checked: a healthy Wazuh deployment shows a
+long tail of Level~1 to Level~3 informational events, a small number of Level~5
+to Level~8 alerts, and rare Level~12+ high-severity events, which was
+observed. Third, a manual query for \texttt{rule.description: "Sysmon"} on
+the Windows agent, and \texttt{rule.description: "execve"} on the Linux
+agent, was used to confirm that both endpoints' enhanced telemetry was not
+merely being ingested but was actually reachable through the dashboard's
+query interface.
 
-The Linux endpoint was installed manually from the Ubuntu Desktop 26.04 LTS ISO onto a new VirtualBox VM (4096~MB RAM, 2 vCPUs, 30~GB disk, attached to \texttt{SOC-Lab}). The endpoint received DHCP address 10.0.10.5.
-
-The Wazuh Linux agent was installed via the DEB package generated by the same dashboard wizard, and the service enabled and started with \texttt{systemctl}. The agent appeared as agent ID 002 on the dashboard.
-
-To provide command-execution telemetry equivalent to Sysmon on Windows, the Linux Audit framework (\texttt{auditd}) was installed. Two audit rules were added to \texttt{/etc/audit/rules.d/wazuh.rules} tracking every \texttt{execve} system call (the syscall invoked whenever any command is executed), keyed with \texttt{audit-wazuh-c} for identification. The rules were loaded with \texttt{augenrules --load} and verified with \texttt{auditctl -l}. The Wazuh Linux agent by default reads \texttt{/var/log/audit/audit.log}, so no further agent configuration was required beyond restarting \texttt{wazuh-agent}.
-
-At this point, both endpoints were delivering detection-grade telemetry to the SIEM: Sysmon on Windows for process, network, and file events; \texttt{auditd} on Linux for command execution. Milestone M4 was complete.
-
-\subsection{Attack Simulations (M5)}
-
-Four simulations were executed in the lab. Each is summarised below with the technique targeted, the commands issued, and the alerts observed.
-
-\textbf{Simulation 1, Windows account creation and privilege escalation (T1136.001, T1078.003).} From an elevated PowerShell session on the Windows endpoint, the commands \texttt{net user testuser P@ssw0rd123! /add} and \texttt{net localgroup administrators testuser /add} were executed. Within 60 seconds, Wazuh produced a cluster of correlated alerts including ``Users Group Changed'' (Level 8), ``Administrative Privilege Assigned'' (Level 12), ``Domain Users Group Changed'' (Level 8), ``A \texttt{net user} account discovery command was executed'' (Level 3), and multiple Sysmon-based alerts for the underlying process creation. This is the incident written up in full as \textbf{INC-2026-001} in the accompanying \texttt{incident-reports/} folder.
-
-\textbf{Simulation 2, Linux account creation and privilege escalation.} The commands \texttt{sudo useradd -m testuser}, a password set via \texttt{chpasswd}, and \texttt{sudo usermod -aG sudo testuser} were executed on the Linux endpoint. Wazuh produced ``New group added to the system'' (Rule 5901, Level 8), ``New user added to the system'' (Rule 5902, Level 8), ``Successful sudo to ROOT executed'' (Rule 5402, Level 3), and PAM session-lifecycle alerts. This validated end-to-end delivery of \texttt{auditd} telemetry into Wazuh.
-
-\textbf{Simulation 3, failed sudo attempts (T1110).} The user's sudo credential cache was invalidated with \texttt{sudo -k}, then a sudo command was executed with four consecutive wrong passwords. Wazuh produced ``\texttt{unix\_chkpwd}: Password check failed'' (Rule 5557, Level 5) for each attempt, plus ``PAM: User login failed'' (Rule 5503, Level 5). Under sufficient failure velocity, Wazuh's correlation rules would additionally produce ``Multiple authentication failures'' at a higher level; this was not observed within the small number of attempts used.
-
-\textbf{Simulation 4, Windows hosts file modification (FIM test).} A benign entry was appended to \texttt{C:\textbackslash{}Windows\textbackslash{}System32\textbackslash{}drivers\textbackslash{}etc\textbackslash{}hosts} using PowerShell's \texttt{Add-Content}. No real-time FIM alert appeared in Wazuh within the observation window. This is a genuine and useful finding, not a failure: Wazuh's default FIM configuration runs on a scheduled basis (every 12 hours by default) rather than real-time, and the \texttt{hosts} file path is not specifically configured for real-time watching. This finding is captured as a recommendation in the incident report and in Section~\ref{sec:discussion}.
-
-\subsection{Analyst Triage and Incident Reporting (M6)}
-
-Simulation 1 was written up in full as an incident report (\texttt{INC-2026-001\_Windows\_Account\_Creation.docx}) following a standard analyst format: executive summary, incident details, timeline, detection and alerting, technical analysis, impact assessment (CIA triad), response actions (immediate, short-term, follow-up), root cause and findings, recommendations, and lessons learned, with MITRE ATT\&CK mappings throughout. A reusable blank template of the same format is included in the repository for future incidents.
+With these verifications passed, the lab was considered operational and
+ready for the attack simulations described in Section~\ref{sec:evaluation}.

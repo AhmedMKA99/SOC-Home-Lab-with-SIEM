@@ -1,37 +1,105 @@
-\section{Conclusions}
+\section{Conclusions and Future Work}
 \label{sec:conclusions}
 
 \subsection{Summary}
 
-This project set out to design, deploy, and operate a functional Security Operations Centre home lab using only free and open-source software, and to document the build to a reproducible standard. Every objective from Section~\ref{sec:aim} was met. A working Wazuh SIEM was deployed on an isolated virtual network. Two monitored endpoints, one Windows and one Linux, were enrolled with detection-grade telemetry provided by Sysmon and \texttt{auditd} respectively. Four attack simulations were executed, three of which produced clear alert clusters within 60 seconds of the triggering action, and the fourth produced a useful finding about the default behaviour of File Integrity Monitoring. One simulation was written up in full as a professional incident report following a standard analyst format, and the entire project (build documents, simulation evidence, incident reports, and this formal report) has been published to a public GitHub repository.
+This project designed, built, documented, and evaluated a Security
+Operations Centre home lab using entirely free and open-source tooling.
+The lab consists of a Wazuh SIEM manager and two monitored endpoints ---
+one Windows and one Linux --- on an isolated virtualised network. Both
+endpoints run deliberate detection-grade telemetry: Sysmon with the
+SwiftOnSecurity baseline on Windows, and the Linux Audit framework with
+\texttt{execve} monitoring on Linux. Four attack simulations covering
+persistence, privilege escalation, credential access, and detection
+configuration were executed and triaged against the built environment,
+each producing either a documented true-positive alert cluster or a
+deliberately documented negative result. Full analyst-style incident
+reports were written for every simulation, and the entire build was
+recorded as a reproducible step-by-step guide alongside a formal report
+(this document).
 
-More importantly, the project produced something less tangible than any single artefact: sustained, hands-on practice with the workflow that real Tier 1 SOC analysts perform every day. Deploying a SIEM, enrolling endpoints, engineering telemetry, watching alerts, correlating clusters, writing up incidents, and reflecting honestly on limitations, all of these are the discipline of security operations, and none of them are taught by textbook alone.
+The seven project objectives set out in Section~\ref{sec:aim} were all
+met, and the four success criteria stated in the Initial Project Overview
+were all satisfied.
 
-\subsection{Answering the Aim}
+\subsection{Answers to the Research Questions}
 
-The aim of the project was:
+\textbf{RQ1.} A credible SOC monitoring environment can be built with only
+free and open-source tools, provided that "credible" is scoped to
+individual learning and portfolio demonstration rather than to running a
+production security programme. The Wazuh stack in particular is genuinely
+representative of a live SIEM in both operation and concept.
 
-\begin{quote}
-\itshape
-To design, deploy, and operate a functional SOC home lab built on an open-source SIEM, capable of collecting and analysing security telemetry from multiple endpoints and supporting a realistic analyst triage workflow.
-\end{quote}
+\textbf{RQ2.} Meaningful detection requires deliberate configuration
+beyond defaults on both endpoint platforms: Sysmon plus a Wazuh-side
+\texttt{<localfile>} block for Windows, and \texttt{auditd} with
+\texttt{execve} rules for Linux. In addition, real-time File Integrity
+Monitoring on security-critical paths requires an explicit
+\texttt{realtime="yes"} directive, without which FIM operates on a
+twelve-hour scan cycle. Vendor defaults optimise for coverage with low
+overhead, not for security-critical corner cases, and closing those
+corner cases is a large share of what detection engineering is.
 
-This aim has been met in full. The environment collects and analyses telemetry from two heterogeneous endpoints in real time, produces meaningful alerts in response to realistic adversary techniques, supports genuine analyst triage through the Wazuh dashboard, and has produced at least one incident report in professional analyst form. The lab is not a production system, and the report has been transparent throughout about the difference. But at the level of shape, workflow, and skill development, the aim is achieved.
+\textbf{RQ3.} A single-machine virtualised lab represents perhaps twenty
+per cent of a professional SOC's operational surface, and does so along
+the axis most relevant to the Tier~1 analyst role: the first sixty
+seconds after an alert appears. Scale, team workflow, network detection,
+cloud telemetry, threat intelligence enrichment, and response automation
+are all absent, and this is documented openly in the Discussion rather
+than glossed over.
+
+\subsection{Contribution}
+
+The specific contribution of this project is a fully documented,
+reproducible SOC home lab build using open-source tools, paired with a
+set of triaged attack simulations that include both positive and
+deliberately negative results, and with analyst-style incident reports
+for each simulation. The project is deliberately positioned as the first
+stage of a two-part progression: it establishes the monitoring foundation
+on which a planned second project, focused on detection engineering with
+MITRE ATT\&CK and Atomic Red Team, will build.
 
 \subsection{Future Work}
 
-Several extensions to this work are already planned or worth noting.
+Several extensions were identified during the project and are noted here
+for future development. They fall into three groups.
 
-\textbf{Enable real-time FIM on critical paths.} The finding from Simulation 4 pointed to a genuine configuration gap. A short follow-on task would enable real-time monitoring on high-value files (the Windows \texttt{hosts} file, \texttt{/etc/passwd} and \texttt{/etc/shadow} on Linux, plus any application-specific critical files) and re-run the FIM simulation to confirm the improvement.
+\textbf{Detection engineering (Project~2).} The planned follow-on project
+will focus on custom rule development, mapping detection coverage against
+MITRE ATT\&CK, and using Atomic Red Team to execute a broader and more
+systematic set of attack techniques. The two specific detection gaps
+identified in this project --- the absence of an aggregate rule for
+repeated failed authentication (Simulation~3) and the lack of real-time
+FIM on the Windows hosts file (Simulation~4) --- are both natural starting
+points for that work.
 
-\textbf{Detection engineering with MITRE ATT\&CK.} A second, planned project extends the lab in a specific direction: using it as the environment for structured detection engineering. Atomic Red Team will be used to emulate a set of ATT\&CK techniques against the endpoints, with the resulting telemetry used to author and test Sigma or Wazuh custom rules for each. The output would be a documented detection catalogue mapped to ATT\&CK. This is a natural next step, and the current SOC lab is the foundation on which it depends.
+\textbf{Additional telemetry sources.} The current lab is host-based only.
+Adding network-tier detection through Suricata or Zeek integrated with
+Wazuh would extend coverage to lateral movement and command-and-control
+traffic that host telemetry alone cannot see. Enabling the Wazuh
+vulnerability-detector on a schedule (with the disk consumption issue
+discussed in Section~\ref{sec:discussion} mitigated) would add
+vulnerability visibility to the existing detection surface. Integrating a
+threat intelligence feed for IOC enrichment would move the lab closer to
+the enrichment workflows real SOCs depend on.
 
-\textbf{Threat intelligence integration.} A further extension would integrate threat intelligence feeds (for example, MISP or free STIX/TAXII sources) so that indicators of compromise from external sources can be enriched against the lab's own telemetry.
+\textbf{Response automation and case management.} All response actions in
+the current lab were performed by hand. Adding Wazuh's active-response
+module, or integrating a lightweight SOAR platform such as Shuffle for
+playbook automation, would demonstrate the response side of the SOC
+lifecycle in the same practical way that this project demonstrates the
+detection side. Adding a lightweight case management or ticketing layer
+would let the analyst workflow be exercised end to end.
 
-\textbf{Purple team exercises.} Beyond isolated simulations, a mature version of the lab would host structured purple team exercises: an offensive scenario is played end-to-end, the defensive side attempts detection, and gaps are captured formally. This is a more demanding exercise than isolated technique testing and would substantially deepen the analyst skill development.
+\subsection{Closing Note}
 
-\textbf{Scaling considerations.} At any point where the lab is expanded to more endpoints or more data sources, the storage and query performance of the Wazuh indexer become relevant. A further iteration on a larger host, or in a small cloud environment, would allow this dimension to be explored.
-
-\subsection{Closing Reflection}
-
-The most important outcome of this project is not the working lab, nor even the incident report or the documentation. It is the demonstration that a graduate can, without prior professional experience, stand up a real defensive security environment from scratch, exercise it against realistic adversary techniques, and produce artefacts that stand up to scrutiny. That is the kind of practical, evidenced foundation on which a career in security operations is built.
+The core aim of this project was to close, for the author personally, the
+gap between theoretical knowledge of SIEM operations and practical
+hands-on experience of it. That gap has been closed, and the resulting
+build and documentation are offered as both a self-contained portfolio
+artefact and as a foundation for further work in detection engineering.
+The environment stands ready for that follow-on work; the disciplines it
+required to build --- deliberate telemetry design, structured triage,
+honest documentation, and the willingness to run and record negative
+tests --- are the same disciplines the follow-on work will demand at
+greater depth.
