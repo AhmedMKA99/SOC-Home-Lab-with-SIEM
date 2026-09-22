@@ -4,7 +4,7 @@ A hands-on Security Operations Centre (SOC) home lab built on the open-source SI
 
 This project demonstrates practical blue-team skills — SIEM deployment, endpoint telemetry, log collection, and alert triage — and is fully documented so the environment can be reproduced from scratch.
 
-> **Status:** Complete. The lab is built and operational, four attack simulations have been executed and triaged, four analyst-style incident reports have been written, and the full formal report is compiled at [`report/main.pdf`](report/main.pdf).
+> **Status:** Complete _(last updated: 22 September 2026)_. The lab is built and operational, four attack simulations have been executed and triaged, four analyst-style incident reports have been written, and the full formal report is compiled at [`report/main.pdf`](report/main.pdf).
 
 ---
 
